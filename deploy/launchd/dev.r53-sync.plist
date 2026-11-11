@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Install as /Library/LaunchDaemons/dev.r53-sync.plist, owned by root:wheel and not writable by
+  group or others (see deploy/README.md). Runs as root at load and then every 12 hours.
+  No secrets belong in this file: the AWS credentials live in a root-only file it points at.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>dev.r53-sync</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/r53-sync/bin/r53-sync</string>
+        <string>--config</string>
+        <string>/usr/local/etc/r53-sync/config.toml</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- 12 hours. launchd skips an interval that elapses while the Mac sleeps. -->
+    <key>StartInterval</key>
+    <integer>43200</integer>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <!--
+          launchd jobs do not get your shell's PATH. This job runs as root, so PATH holds only
+          root-owned system directories; Homebrew's directories belong to the login user and
+          must not be here. Set tailscale_path in the config instead (see deploy/README.md).
+        -->
+        <key>PATH</key>
+        <string>/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>AWS_SHARED_CREDENTIALS_FILE</key>
+        <string>/usr/local/etc/r53-sync/aws-credentials</string>
+        <!-- Not an EC2 instance: stop boto3 probing 169.254.169.254 when no credentials are found. -->
+        <key>AWS_EC2_METADATA_DISABLED</key>
+        <string>true</string>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/var/log/r53-sync.log</string>
+    <key>StandardErrorPath</key>
+    <string>/var/log/r53-sync.log</string>
+</dict>
+</plist>

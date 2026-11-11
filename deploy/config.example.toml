@@ -1,0 +1,24 @@
+# r53-sync configuration. Copy to /etc/r53-sync/config.toml (Linux) or
+# /usr/local/etc/r53-sync/config.toml (macOS). Unknown keys are rejected.
+# Every key can also be set with an R53_SYNC_<KEY> environment variable or a CLI flag.
+
+# Domain of the hosted zone. The record is <short-hostname>.<domain>. Required.
+domain = "example.com"
+
+# Hosted zone ID. Optional; setting it skips the zone lookup, so the IAM user does not need
+# route53:ListHostedZones.
+# zone_id = "Z0123456789ABC"
+
+# Record TTL in seconds.
+# ttl = 300
+
+# AWS profile name. Optional; normally unnecessary because the shipped service and daemon
+# point boto3 at a root-only credentials file (see deploy/README.md).
+# aws_profile = "default"
+
+# Absolute path of the tailscale binary. Optional. On macOS the daemon runs as root, so pin
+# this to a root-owned binary instead of letting r53-sync search PATH or Homebrew directories
+# (which the login user can write to):
+#   Linux:  /usr/bin/tailscale
+#   macOS:  /Applications/Tailscale.app/Contents/MacOS/Tailscale
+# tailscale_path = "/usr/bin/tailscale"

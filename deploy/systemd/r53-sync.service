@@ -1,0 +1,52 @@
+# Install as /etc/systemd/system/r53-sync.service (see deploy/README.md).
+# Run by r53-sync.timer; one run points this host's Route53 records at its Tailscale addresses.
+
+[Unit]
+Description=Point this host's Route53 records at its Tailscale addresses
+Wants=network-online.target tailscaled.service
+After=network-online.target tailscaled.service
+# A failed run is retried a few times (tailscaled may still be starting after boot), then the
+# unit stays failed until the next timer run instead of retrying forever.
+StartLimitIntervalSec=10min
+StartLimitBurst=5
+
+[Service]
+Type=oneshot
+ExecStart=/opt/r53-sync/bin/r53-sync --config /etc/r53-sync/config.toml
+Restart=on-failure
+RestartSec=60
+# Exit code 2 is a configuration error; retrying cannot fix it.
+RestartPreventExitStatus=2
+TimeoutStartSec=2min
+
+# This host's IAM user keys, in AWS shared-credentials format, in a file owned by root with
+# mode 0600. The service manager reads it (the dynamic user never needs access) and gives this
+# service alone a read-only copy at %d/aws-credentials. Unlike environment variables, the copy
+# is not inherited by child processes and is not exposed over D-Bus. Needs systemd 247 or newer.
+LoadCredential=aws-credentials:/etc/r53-sync/aws-credentials
+
+# Sandbox. DynamicUser implies NoNewPrivileges, ProtectSystem=strict and read-only homes.
+DynamicUser=yes
+UMask=0077
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+# AF_UNIX reaches the tailscaled socket; AF_INET/AF_INET6 reach AWS. If name resolution fails
+# under this filter, add AF_NETLINK.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+# boto3 reads the credentials file that AWS_SHARED_CREDENTIALS_FILE names. The EC2 metadata
+# lookup is off because this is not an EC2 instance; without it boto3 would probe
+# 169.254.169.254 whenever no credentials are found.
+Environment=PYTHONDONTWRITEBYTECODE=1 AWS_SHARED_CREDENTIALS_FILE=%d/aws-credentials AWS_EC2_METADATA_DISABLED=true
+# Not enabled because they are untested with this Python build: SystemCallFilter=@system-service
+# (with SystemCallErrorNumber=EPERM) and MemoryDenyWriteExecute=yes. Enable after testing.

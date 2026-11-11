@@ -1,0 +1,15 @@
+# Install as /etc/systemd/system/r53-sync.timer, then: systemctl enable --now r53-sync.timer
+# To change the interval, add a drop-in; see deploy/README.md.
+
+[Unit]
+Description=Run r53-sync every 12 hours
+
+[Timer]
+# First run shortly after boot, then every 12 hours after the previous run started.
+OnBootSec=2min
+OnUnitActiveSec=12h
+# Spread hosts out so they do not all call AWS at the same second.
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target

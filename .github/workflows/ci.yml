@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python: "3.14"
+            experimental: false
+          - python: "3.15"
+            experimental: true
+    continue-on-error: ${{ matrix.experimental }}
+    env:
+      # Without this, .python-version (3.14) wins for every `uv run` step and the 3.15 leg
+      # would silently test 3.14.
+      UV_PYTHON: ${{ matrix.python }}
+    steps:
+      # Actions are pinned to full commit SHAs; the comment names the release each one is.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          # The version the lockfile was generated with; bump it together with uv.lock.
+          version: "0.13.7"
+      - run: uv python install ${{ matrix.python }}
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run ty check
+      - run: uv run pytest
